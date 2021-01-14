@@ -190,6 +190,11 @@ func (in *KubeletConfiguration) DeepCopyInto(out *KubeletConfiguration) {
 		*out = new(v1.Duration)
 		**out = **in
 	}
+	if in.NodeStatusMaxImages != nil {
+		in, out := &in.NodeStatusMaxImages, &out.NodeStatusMaxImages
+		*out = new(int32)
+		**out = **in
+	}
 	if in.KubeAPIQPS != nil {
 		in, out := &in.KubeAPIQPS, &out.KubeAPIQPS
 		*out = new(int32)
@@ -290,6 +295,14 @@ func (in *KubeletConfiguration) DeepCopyInto(out *KubeletConfiguration) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	out.Logging = in.Logging
+	if in.EnableSystemLogHandler != nil {
+		in, out := &in.EnableSystemLogHandler, &out.EnableSystemLogHandler
+		*out = new(bool)
+		**out = **in
+	}
+	out.ShutdownGracePeriod = in.ShutdownGracePeriod
+	out.ShutdownGracePeriodCriticalPods = in.ShutdownGracePeriodCriticalPods
 	return
 }
 

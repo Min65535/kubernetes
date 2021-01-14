@@ -31,11 +31,8 @@ E2E_GO_RUNNER_BIN?=$(shell test -f $(LOCAL_OUTPUT_PATH)/go-runner && echo $(LOCA
 
 CLUSTER_DIR?=$(shell pwd)/../../../cluster/
 
-BASEIMAGE=debian:stretch-slim
+BASEIMAGE=debian:stable-slim
 TEMP_DIR:=$(shell mktemp -d -t conformanceXXXXXX)
-
-#output format for docker buildx build [push, load]
-OUTPUT=--load
 
 all: build
 
@@ -57,16 +54,17 @@ endif
 	chmod a+rx ${TEMP_DIR}/e2e.test
 	chmod a+rx ${TEMP_DIR}/gorunner
 
-	cd ${TEMP_DIR} && sed -i.back "s|BASEIMAGE|${BASEIMAGE}|g" Dockerfile
+	cd ${TEMP_DIR} && sed -i.back "s|ARCH|${ARCH}|g; s|BASEIMAGE|${BASEIMAGE}|g" Dockerfile
 
-	DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --pull --platform linux/$(ARCH) $(OUTPUT) -t ${REGISTRY}/conformance-${ARCH}:${VERSION} ${TEMP_DIR}
-ifeq ($(ARCH),amd64)
-	docker rmi ${REGISTRY}/conformance:${VERSION} 2>/dev/null || true
-	DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --pull --platform linux/$(ARCH) $(OUTPUT) -t ${REGISTRY}/conformance:${VERSION} ${TEMP_DIR}
-endif
+	docker build --pull -t ${REGISTRY}/conformance-${ARCH}:${VERSION} ${TEMP_DIR}
 	rm -rf "${TEMP_DIR}"
 
-push: OUTPUT=--push
 push: build
+	docker push ${REGISTRY}/conformance-${ARCH}:${VERSION}
+ifeq ($(ARCH),amd64)
+	docker rmi ${REGISTRY}/conformance:${VERSION} 2>/dev/null || true
+	docker tag ${REGISTRY}/conformance-${ARCH}:${VERSION} ${REGISTRY}/conformance:${VERSION}
+	docker push ${REGISTRY}/conformance:${VERSION}
+endif
 
 .PHONY: build push all

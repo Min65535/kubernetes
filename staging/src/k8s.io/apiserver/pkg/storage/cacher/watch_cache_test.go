@@ -81,8 +81,14 @@ func newTestWatchCache(capacity int, indexers *cache.Indexers) *watchCache {
 	}
 	versioner := etcd3.APIObjectVersioner{}
 	mockHandler := func(*watchCacheEvent) {}
-	wc := newWatchCache(capacity, keyFunc, mockHandler, getAttrsFunc, versioner, indexers, reflect.TypeOf(&example.Pod{}))
-	wc.clock = clock.NewFakeClock(time.Now())
+	wc := newWatchCache(keyFunc, mockHandler, getAttrsFunc, versioner, indexers, clock.NewFakeClock(time.Now()), reflect.TypeOf(&example.Pod{}))
+	// To preserve behavior of tests that assume a given capacity,
+	// resize it to th expected size.
+	wc.capacity = capacity
+	wc.cache = make([]*watchCacheEvent, capacity)
+	wc.lowerBoundCapacity = min(capacity, defaultLowerBoundCapacity)
+	wc.upperBoundCapacity = max(capacity, defaultUpperBoundCapacity)
+
 	return wc
 }
 
@@ -132,7 +138,7 @@ func TestWatchCacheBasic(t *testing.T) {
 			"prefix/ns/pod2": *makeTestStoreElement(makeTestPod("pod2", 5)),
 			"prefix/ns/pod3": *makeTestStoreElement(makeTestPod("pod3", 6)),
 		}
-		items := make(map[string]storeElement, 0)
+		items := make(map[string]storeElement)
 		for _, item := range store.List() {
 			elem := item.(*storeElement)
 			items[elem.Key] = *elem
@@ -399,6 +405,9 @@ func TestWaitUntilFreshAndList(t *testing.T) {
 		{IndexName: "l:not-exist-label", Value: "whatever"},
 	}
 	list, resourceVersion, err = store.WaitUntilFreshAndList(5, matchValues, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if resourceVersion != 5 {
 		t.Errorf("unexpected resourceVersion: %v, expected: 5", resourceVersion)
 	}
